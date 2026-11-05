@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>Nota Usaha</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#16202a;--muted:#667085;--line:#e3e8ee;--brand:#0f766e;--brand2:#115e59;--warn:#b45309;--danger:#b42318}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding-bottom:90px}
+header{background:var(--brand);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:18px}
+nav{display:flex;gap:6px;margin-top:10px}
+nav button{flex:1;border:0;padding:9px 4px;border-radius:8px;background:rgba(255,255,255,.15);color:#fff;font-size:14px}
+nav button.on{background:#fff;color:var(--brand2);font-weight:600}
+main{max-width:640px;margin:0 auto;padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #cfd6df;border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand);border-color:var(--brand)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button.btn{border:0;border-radius:10px;padding:12px 14px;font:inherit;font-weight:600;background:var(--brand);color:#fff;width:100%}
+button.btn.alt{background:#fff;color:var(--brand2);border:1px solid var(--brand)}
+button.btn.gray{background:#eef1f5;color:var(--ink)}
+button.btn.danger{background:#fff;color:var(--danger);border:1px solid #f0b4ae}
+button.btn:disabled{opacity:.5}
+.grid{display:grid;gap:8px}
+.g2{grid-template-columns:1fr 1fr}
+.hide{display:none!important}
+.status{font-size:13px;padding:8px 10px;border-radius:8px;background:#ecfdf3;color:#067647;margin-top:8px}
+.status.warn{background:#fffaeb;color:var(--warn)}
+.status.err{background:#fef3f2;color:var(--danger)}
+.paper{background:#fff;border:1px dashed #b8c1cc;border-radius:6px;padding:14px 10px;overflow-x:auto;text-align:center}
+.paper pre{display:inline-block;text-align:left;margin:0;font:13px/1.35 ui-monospace,Menlo,Consolas,monospace;color:#000;white-space:pre}
+.total{display:flex;justify-content:space-between;font-weight:700;font-size:18px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;z-index:6}
+.bar .btn{flex:1}
+.hist{border-bottom:1px solid var(--line);padding:10px 0}
+.hist:last-child{border:0}
+.hist b{display:block}
+.hist small{color:var(--muted)}
+.hist .acts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.hist .acts .btn{padding:8px;font-size:13px}
+details summary{color:var(--muted);font-size:13px;margin-top:8px}
+details pre{white-space:pre-wrap;font-size:12px;background:#f7f8fa;padding:8px;border-radius:6px}
+.note{font-size:12.5px;color:var(--muted);margin-top:6px}
+@media print{
+  body{background:#fff;padding:0}
+  header,nav,main>*:not(#printArea),.bar{display:none!important}
+  #printArea{display:block!important}
+  #printArea pre{font:11px/1.3 monospace}
+  @page{margin:2mm}
+}
+#printArea{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧾 Nota Usaha</h1>
+  <nav id="tabs">
+    <button data-tab="buat" class="on">Buat Nota</button>
+    <button data-tab="riwayat">Riwayat</button>
+    <button data-tab="atur">Pengaturan</button>
+  </nav>
+</header>
+
+<main>
+<!-- ============ BUAT NOTA ============ -->
+<section id="tab-buat">
+  <div class="card">
+    <h2>Isi dari foto (opsional)</h2>
+    <div class="grid g2">
+      <button class="btn alt" id="btnCam">📷 Ambil foto</button>
+      <button class="btn alt" id="btnGal">🖼️ Pilih gambar</button>
+    </div>
+    <input type="file" id="fileCam" accept="image/*" capture="environment" class="hide">
+    <input type="file" id="fileGal" accept="image/*" class="hide">
+    <div id="ocrStatus" class="status warn hide"></div>
+    <details id="ocrRawBox" class="hide"><summary>Lihat teks hasil baca</summary><pre id="ocrRaw"></pre></details>
+    <p class="note">Foto hanya dibaca untuk mengisi kolom di bawah. Nota yang dicetak memakai format dan nama usaha Anda sendiri. Selalu periksa ulang hasil bacaan sebelum mencetak.</p>
+  </div>
+
+  <div class="card">
+    <h2>Data transaksi</h2>
+    <label>Jenis transaksi</label>
+    <select id="type"></select>
+    <div id="dynFields"></div>
+    <div class="row2">
+      <div><label>Nominal (Rp)</label><input id="nominal" inputmode="numeric" placeholder="0"></div>
+      <div><label>Biaya admin (Rp)</label><input id="admin" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="row2">
+      <div><label>Tanggal &amp; jam</label><input id="date" type="datetime-local"></div>
+      <div><label>Pembayaran</label>
+        <select id="method"><option>Tunai</option><option>Transfer</option><option>QRIS</option><option>Lainnya</option></select>
+      </div>
+    </div>
+    <label>No. referensi penyedia (sesuai bukti asli)</label>
+    <input id="ref" placeholder="mis. nomor referensi dari bank / PLN">
+    <label>Catatan (opsional)</label>
+    <input id="note" placeholder="">
+    <div class="total"><span>TOTAL</span><span id="totalTxt">Rp 0</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Pratinjau nota <span id="noNota" style="float:right;text-transform:none"></span></h2>
+    <div class="paper"><pre id="preview"></pre></div>
+    <div class="grid g2" style="margin-top:10px">
+      <button class="btn gray" id="btnImg">🖼️ Simpan/bagikan gambar</button>
+      <button class="btn gray" id="btnSys">🖨️ Cetak lewat browser</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RIWAYAT ============ -->
+<section id="tab-riwayat" class="hide">
+  <div class="card">
+    <h2>Riwayat nota</h2>
+    <div id="histList"></div>
+    <button class="btn danger" id="btnClearHist" style="margin-top:10px">Hapus semua riwayat</button>
+  </div>
+</section>
+
+<!-- ============ PENGATURAN ============ -->
+<section id="tab-atur" class="hide">
+  <div class="card">
+    <h2>Identitas usaha</h2>
+    <label>Nama usaha</label><input id="sName" placeholder="mis. Berkah Pulsa &amp; PPOB">
+    <label>Alamat</label><textarea id="sAddr" rows="2" placeholder="Jl. ..."></textarea>
+    <label>Telepon / WhatsApp</label><input id="sPhone" inputmode="tel">
+    <label>Kalimat penutup</label><input id="sFooter" placeholder="Terima kasih atas kepercayaan Anda">
+    <div class="row2">
+      <div><label>Awalan nomor nota</label><input id="sPrefix" placeholder="NT"></div>
+      <div><label>Lebar kertas</label>
+        <select id="sWidth"><option value="32">58 mm (32 karakter)</option><option value="48">80 mm (48 karakter)</option></select>
+      </div>
+    </div>
+    <div class="row2">
+      <div><label>Jumlah baris kosong di akhir</label><input id="sFeed" type="number" min="0" max="10" value="3"></div>
+      <div><label>Potong kertas otomatis</label>
+        <select id="sCut"><option value="0">Tidak</option><option value="1">Ya (jika printer mendukung)</option></select>
+      </div>
+    </div>
+    <button class="btn" id="btnSaveSet" style="margin-top:12px">Simpan pengaturan</button>
+  </div>
+  <div class="card">
+    <h2>Printer Bluetooth</h2>
+    <div class="grid g2">
+      <button class="btn alt" id="btnConnect">🔗 Hubungkan printer</button>
+      <button class="btn gray" id="btnTest">Cetak uji coba</button>
+    </div>
+    <div id="btStatus" class="status warn">Belum terhubung.</div>
+    <p class="note">Aktifkan Bluetooth dan nyalakan printer dulu. Fitur ini butuh Chrome/Edge di Android (atau komputer). Di iPhone/iOS, Safari tidak mendukung Bluetooth web: gunakan tombol “Simpan/bagikan gambar” lalu cetak lewat aplikasi printer Anda.</p>
+  </div>
+</section>
+</main>
+
+<div id="printArea"><pre id="printPre"></pre></div>
+
+<div class="bar" id="mainBar">
+  <button class="btn gray" id="btnSave">💾 Simpan</button>
+  <button class="btn" id="btnPrint">🖨️ Cetak Bluetooth</button>
+</div>
+
+<script>
+/* ===================== Util ===================== */
+const $ = s => document.querySelector(s);
+const rp = n => 'Rp ' + (Number(n)||0).toLocaleString('id-ID');
+const num = v => parseInt(String(v||'').replace(/[^\d]/g,''),10) || 0;
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+const pad2 = n => String(n).padStart(2,'0');
+function nowLocalInput(){ const d=new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+function fmtDate(s){
+  const d=new Date(s); if(isNaN(d)) return s||'-';
+  return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+/* ===================== Jenis transaksi ===================== */
+const TYPES = {
+  transfer: { label:'Transfer Bank', fields:[
+    {k:'bank',   l:'Bank tujuan',        p:'mis. BCA / BRI / Mandiri'},
+    {k:'rek',    l:'No. rekening tujuan',p:'', inp:'numeric'},
+    {k:'nama',   l:'Nama penerima',      p:''},
+    {k:'berita', l:'Berita / keterangan',p:''}
+  ]},
+  token: { label:'Token Listrik', fields:[
+    {k:'meter',  l:'No. meter / ID pelanggan', p:'', inp:'numeric'},
+    {k:'nama',   l:'Nama pelanggan',     p:''},
+    {k:'tarif',  l:'Tarif / daya',       p:'mis. R1/1300 VA'},
+    {k:'kwh',    l:'Jumlah kWh',         p:'mis. 32,5'},
+    {k:'token',  l:'Nomor token (20 digit)', p:'', inp:'numeric'}
+  ]},
+  pulsa: { label:'Pulsa / Paket Data', fields:[
+    {k:'operator',l:'Operator',          p:'mis. Telkomsel'},
+    {k:'nomor',  l:'Nomor tujuan',       p:'', inp:'tel'},
+    {k:'produk', l:'Produk',             p:'mis. Pulsa 50.000 / Data 10GB'}
+  ]},
+  tagihan: { label:'Pembayaran Tagihan', fields:[
+    {k:'penyedia',l:'Penyedia tagihan',  p:'mis. PDAM / BPJS / Telkom'},
+    {k:'idpel',  l:'ID pelanggan',       p:'', inp:'numeric'},
+    {k:'nama',   l:'Nama pelanggan',     p:''},
+    {k:'periode',l:'Periode',            p:'mis. Oktober 2026'}
+  ]},
+  lainnya: { label:'Lainnya', fields:[
+    {k:'deskripsi',l:'Deskripsi layanan',p:''}
+  ]}
+};
+
+/* ===================== State ===================== */
+const DEFAULT_SET = {name:'',addr:'',phone:'',footer:'Terima kasih atas kepercayaan Anda',prefix:'NT',width:32,feed:3,cut:0};
+let SET  = Object.assign({}, DEFAULT_SET, store.get('nota_set',{}));
+let HIST = store.get('nota_hist',[]);
+let COUNTER = store.get('nota_counter',{});     // { 'YYMMDD': n }
+let currentNo = '';
+let editingId = null;                            // id riwayat bila nota dimuat ulang
+
+function peekNo(){
+  const d=new Date(), key=`${String(d.getFullYear()).slice(2)}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`;
+  const n=(COUNTER[key]||0)+1;
+  return {key,n,no:`${SET.prefix||'NT'}/${key}/${String(n).padStart(4,'0')}`};
+}
+function commitNo(){ const p=peekNo(); COUNTER[p.key]=p.n; store.set('nota_counter',COUNTER); }
+
+/* ===================== Form ===================== */
+function buildTypeSelect(){
+  $('#type').innerHTML = Object.entries(TYPES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+}
+function renderFields(vals={}){
+  const t = TYPES[$('#type').value];
+  $('#dynFields').innerHTML = t.fields.map(f=>
+    `<label>${f.l}</label><input data-k="${f.k}" id="f_${f.k}" placeholder="${f.p||''}" ${f.inp?`inputmode="${f.inp}"`:''} value="${esc(vals[f.k]||'')}">`
+  ).join('');
+  document.querySelectorAll('#dynFields input').forEach(i=>i.addEventListener('input',refresh));
+}
+function getData(){
+  const type=$('#type').value, extra={};
+  TYPES[type].fields.forEach(f=>{ extra[f.k]=($('#f_'+f.k)?.value||'').trim(); });
+  return {
+    type, label:TYPES[type].label, extra,
+    date:$('#date').value, method:$('#method').value,
+    ref:$('#ref').value.trim(), note:$('#note').value.trim(),
+    nominal:num($('#nominal').value), admin:num($('#admin').value),
+    no:currentNo
+  };
+}
+function setData(d){
+  $('#type').value=d.type; renderFields(d.extra||{});
+  $('#date').value=d.date||nowLocalInput();
+  $('#method').value=d.method||'Tunai';
+  $('#ref').value=d.ref||''; $('#note').value=d.note||'';
+  $('#nominal').value=d.nominal?String(d.nominal):''; $('#admin').value=d.admin?String(d.admin):'';
+  refresh();
+}
+function newForm(){
+  editingId=null; currentNo=peekNo().no;
+  setData({type:'transfer',date:nowLocalInput(),method:'Tunai',extra:{}});
+}
+
+/* ===================== Susun nota (teks) ===================== */
+const center=(s,w)=>{ s=String(s); if(s.length>=w) return s; const l=Math.floor((w-s.length)/2); return ' '.repeat(l)+s; };
+const rowLR=(l,r,w)=>{ l=String(l); r=String(r); const sp=w-l.length-r.length; return sp>=1 ? l+' '.repeat(sp)+r : l+'\n'+' '.repeat(Math.max(0,w-r.length))+r; };
+function wrap(s,w,indent=''){
+  const out=[]; let line='';
+  String(s).split(/\s+/).forEach(word=>{
+    while(word.length>w-indent.length){ // kata terlalu panjang
+      if(line){ out.push(line); line=''; }
+      out.push(indent+word.slice(0,w-indent.length)); word=word.slice(w-indent.length);
+    }
+    if(!line) line=indent+word;
+    else if((line+' '+word).length<=w) line+=' '+word;
+    else { out.push(line); line=indent+word; }
+  });
+  if(line) out.push(line);
+  return out;
+}
+function kv(l,v,w){
+  v=String(v||'').trim(); if(!v) return [];
+  if((l+': '+v).length<=w) return [rowLR(l,v,w)];
+  return [l+':'].concat(wrap(v,w,'  '));
+}
+const groupToken=t=>String(t).replace(/\D/g,'').replace(/(\d{4})(?=\d)/g,'$1 ');
+
+/* returns [{t, b}] — t sudah rata sesuai lebar, b = tebal */
+function buildLines(d, W=SET.width){
+  const L=[], add=(t,b=false)=>String(t).split('\n').forEach(x=>L.push({t:x,b})),
+        sep=()=>add('-'.repeat(W)), dsep=()=>add('='.repeat(W));
+  const name=(SET.name||'NAMA USAHA').toUpperCase();
+  wrap(name,W).forEach(x=>add(center(x,W),true));
+  if(SET.addr)  wrap(SET.addr,W).forEach(x=>add(center(x,W)));
+  if(SET.phone) add(center('Telp/WA: '+SET.phone,W));
+  dsep();
+  add(center('NOTA TRANSAKSI',W),true);
+  sep();
+  add(rowLR('No',d.no||'-',W));
+  add(rowLR('Tanggal',fmtDate(d.date),W));
+  add(rowLR('Layanan',d.label,W));
+  sep();
+  const ex=d.extra||{}, def=TYPES[d.type].fields;
+  def.forEach(f=>{
+    if(f.k==='token') return;
+    let v=ex[f.k]; if(!v) return;
+    if(f.k==='kwh') v+=' kWh';
+    kv(f.l.replace(/ \(.*\)/,'').replace(/^No\. meter \/ ID pelanggan$/,'No. Meter/ID'),v,W).forEach(x=>add(x));
+  });
+  if(ex.token){
+    sep(); add(center('TOKEN LISTRIK',W),true);
+    add(center(groupToken(ex.token),W),true);
+  }
+  sep();
+  add(rowLR('Nominal',rp(d.nominal),W));
+  if(d.admin) add(rowLR('Biaya admin',rp(d.admin),W));
+  sep();
+  add(rowLR('TOTAL',rp(d.nominal+d.admin),W),true);
+  add(rowLR('Bayar via',d.method,W));
+  if(d.ref||d.note){ sep(); kv('Ref. penyedia',d.ref,W).forEach(x=>add(x)); if(d.note) wrap('Catatan: '+d.note,W).forEach(x=>add(x)); }
+  dsep();
+  wrap(SET.footer||'Terima kasih',W).forEach(x=>add(center(x,W)));
+  add(center('Nota ini diterbitkan oleh',W));
+  wrap(SET.name||'usaha ini',W).forEach(x=>add(center(x,W)));
+  add(center('Bukan struk resmi bank/penyedia',W));
+  return L;
+}
+const toText=L=>L.map(x=>x.t).join('\n');
+
+function refresh(){
+  const d=getData();
+  $('#totalTxt').textContent=rp(d.nominal+d.admin);
+  $('#noNota').textContent=d.no;
+  const L=buildLines(d);
+  $('#preview').innerHTML=L.map(x=>x.b?`<b>${esc(x.t)}</b>`:esc(x.t)).join('\n');
+  $('#printPre').textContent=toText(L);
+}
+
+/* ===================== ESC/POS & Bluetooth ===================== */
+const BT = { dev:null, ch:null };
+const SERVICES = [
+  '000018f0-0000-1000-8000-00805f9b34fb', 0xffe0, 0xff00, 0xfee7, 0xfff0,
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '0000ae30-0000-1000-8000-00805f9b34fb'
+];
+function btStatus(msg,cls=''){ const e=$('#btStatus'); e.textContent=msg; e.className='status '+cls; }
+
+async function connectPrinter(){
+  if(!navigator.bluetooth){ btStatus('Browser ini tidak mendukung Bluetooth web. Gunakan Chrome/Edge di Android, atau pakai tombol bagikan gambar.','err'); return false; }
+  try{
+    btStatus('Mencari printer…','warn');
+    const dev = await navigator.bluetooth.requestDevice({acceptAllDevices:true, optionalServices:SERVICES});
+    dev.addEventListener('gattserverdisconnected',()=>{ BT.ch=null; btStatus('Printer terputus. Tekan “Hubungkan printer” lagi.','warn'); });
+    const server = await dev.gatt.connect();
+    let ch=null;
+    const services = await server.getPrimaryServices();
+    for(const s of services){
+      const chars = await s.getCharacteristics();
+      ch = chars.find(c=>c.properties.writeWithoutResponse) || chars.find(c=>c.properties.write);
+      if(ch) break;
+    }
+    if(!ch) throw new Error('Karakteristik tulis tidak ditemukan pada perangkat ini.');
+    BT.dev=dev; BT.ch=ch;
+    btStatus('Terhubung ke '+(dev.name||'printer'),'');
+    return true;
+  }catch(e){
+    if(e && e.name==='NotFoundError') btStatus('Pemilihan perangkat dibatalkan.','warn');
+    else btStatus('Gagal terhubung: '+(e.message||e),'err');
+    return false;
+  }
+}
+async function ensureConnected(){
+  if(BT.dev && BT.dev.gatt.connected && BT.ch) return true;
+  if(BT.dev){ // coba sambung ulang tanpa dialog
+    try{
+      const server=await BT.dev.gatt.connect();
+      const services=await server.getPrimaryServices();
+      for(const s of services){
+        const chars=await s.getCharacteristics();
+        const ch=chars.find(c=>c.properties.writeWithoutResponse)||chars.find(c=>c.properties.write);
+        if(ch){ BT.ch=ch; btStatus('Terhubung ke '+(BT.dev.name||'printer')); return true; }
+      }
+    }catch(e){}
+  }
+  return connectPrinter();
+}
+function escposBytes(L){
+  const out=[0x1B,0x40]; // init
+  const push=s=>{ for(const ch of s){ const c=ch.charCodeAt(0); out.push(c>=32&&c<127?c:63); } };
+  L.forEach(x=>{
+    out.push(0x1B,0x45,x.b?1:0);
+    push(x.t); out.push(0x0A);
+  });
+  out.push(0x1B,0x45,0);
+  out.push(0x1B,0x64,Math.max(0,Math.min(10,Number(SET.feed)||0)));
+  if(String(SET.cut)==='1') out.push(0x1D,0x56,0x42,0x00);
+  return new Uint8Array(out);
+}
+async function sendBytes(bytes){
+  const ch=BT.ch, CH=100;
+  for(let i=0;i<bytes.length;i+=CH){
+    const part=bytes.slice(i,i+CH);
+    if(ch.properties.writeWithoutResponse && ch.writeValueWithoutResponse) await ch.writeValueWithoutResponse(part);
+    else await ch.writeValue(part);
+    await new Promise(r=>setTimeout(r,25));
+  }
+}
+async function printLines(L){
+  if(!(await ensureConnected())) return false;
+  try{ await sendBytes(escposBytes(L)); return true; }
+  catch(e){ btStatus('Gagal mencetak: '+(e.message||e),'err'); alert('Gagal mencetak: '+(e.message||e)); return false; }
+}
+
+/* ===================== Simpan / riwayat ===================== */
+function saveNota(silent){
+  const d=getData();
+  if(d.nominal<=0){ if(!silent) alert('Isi nominal terlebih dahulu.'); return false; }
+  if(editingId){
+    const i=HIST.findIndex(h=>h.id===editingId);
+    if(i>=0){ HIST[i]=Object.assign({id:editingId},d); }
+  }else{
+    editingId=Date.now();
+    HIST.unshift(Object.assign({id:editingId},d));
+    commitNo();
+  }
+  store.set('nota_hist',HIST);
+  renderHist();
+  if(!silent) toast('Nota tersimpan');
+  return true;
+}
+function renderHist(){
+  const box=$('#histList');
+  if(!HIST.length){ box.innerHTML='<p class="note">Belum ada nota tersimpan.</p>'; return; }
+  box.innerHTML=HIST.map(h=>`
+    <div class="hist">
+      <b>${esc(h.no)} · ${rp(h.nominal+h.admin)}</b>
+      <small>${esc(h.label)} · ${esc(fmtDate(h.date))}</small>
+      <div class="acts">
+        <button class="btn gray" data-a="load" data-id="${h.id}">Buka</button>
+        <button class="btn alt" data-a="print" data-id="${h.id}">Cetak ulang</button>
+        <button class="btn danger" data-a="del" data-id="${h.id}">Hapus</button>
+      </div>
+    </div>`).join('');
+}
+$('#histList').addEventListener('click',async e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const id=Number(b.dataset.id), h=HIST.find(x=>x.id===id); if(!h) return;
+  if(b.dataset.a==='load'){ editingId=id; currentNo=h.no; setData(h); showTab('buat'); }
+  if(b.dataset.a==='print'){ await printLines(buildLines(h)); }
+  if(b.dataset.a==='del'){ if(confirm('Hapus nota '+h.no+'?')){ HIST=HIST.filter(x=>x.id!==id); store.set('nota_hist',HIST); renderHist(); } }
+});
+$('#btnClearHist').onclick=()=>{ if(confirm('Hapus SEMUA riwayat nota?')){ HIST=[]; store.set('nota_hist',HIST); renderHist(); } };
+
+/* ===================== OCR (Tesseract.js) ===================== */
+let tessLoading=null;
+function loadTesseract(){
+  if(window.Tesseract) return Promise.resolve();
+  if(tessLoading) return tessLoading;
+  tessLoading=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload=res; s.onerror=()=>rej(new Error('Gagal memuat mesin OCR. Periksa koneksi internet.'));
+    document.head.appendChild(s);
+  });
+  return tessLoading;
+}
+function ocrMsg(m,cls='warn'){ const e=$('#ocrStatus'); e.textContent=m; e.className='status '+cls; }
+async function runOCR(file){
+  if(!file) return;
+  try{
+    ocrMsg('Memuat mesin pembaca teks…'); await loadTesseract();
+    const r=await Tesseract.recognize(file,'eng',{logger:m=>{ if(m.status==='recognizing text') ocrMsg('Membaca gambar… '+Math.round(m.progress*100)+'%'); }});
+    const text=r.data.text||'';
+    $('#ocrRaw').textContent=text; $('#ocrRawBox').classList.remove('hide');
+    const found=parseReceipt(text);
+    applyParsed(found);
+    ocrMsg('Selesai. Kolom diisi otomatis: PERIKSA kembali semua isian sebelum mencetak.','warn');
+  }catch(e){ ocrMsg('OCR gagal: '+(e.message||e),'err'); }
+}
+function parseMoney(s){ return parseInt(String(s).replace(/[.,](?=\d{3}\b)/g,'').replace(/[^\d]/g,''),10)||0; }
+function parseReceipt(text){
+  const t=text.replace(/\r/g,''), lines=t.split('\n').map(x=>x.trim()).filter(Boolean), low=t.toLowerCase(), o={extra:{}};
+  // jenis
+  if(/token|kwh|pln|meter/.test(low)) o.type='token';
+  else if(/transfer|rekening|bank|bi-?fast|penerima/.test(low)) o.type='transfer';
+  else if(/pulsa|paket data|telkomsel|indosat|xl|axis|tri\b|smartfren/.test(low)) o.type='pulsa';
+  else if(/pdam|bpjs|tagihan|telkom|indihome/.test(low)) o.type='tagihan';
+  else o.type='lainnya';
+  // nominal & admin
+  const moneyOn=l=>{ const m=l.match(/(?:rp\.?|idr)?\s*([\d]{1,3}(?:[.,]\d{3})+|\d{4,})/i); return m?parseMoney(m[1]):0; };
+  for(const l of lines){
+    if(/admin|biaya\s*layanan|fee/i.test(l)){ const v=moneyOn(l); if(v&&!o.admin) o.admin=v; }
+    else if(/nominal|jumlah\s*(transfer|tagihan)?|amount|total|harga/i.test(l)){ const v=moneyOn(l); if(v&&!o.nominal) o.nominal=v; }
+  }
+  if(!o.nominal){ const all=[...t.matchAll(/(?:rp\.?|idr)\s*([\d.,]+)/gi)].map(m=>parseMoney(m[1])).filter(Boolean); if(all.length) o.nominal=Math.max(...all); }
+  // tanggal
+  let m=t.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:[ ,T]+(\d{1,2})[:.](\d{2}))?/);
+  if(m){ o.date=`${m[3]}-${pad2(+m[2])}-${pad2(+m[1])}T${pad2(+(m[4]||0))}:${pad2(+(m[5]||0))}`; }
+  else{
+    const bln={jan:1,feb:2,mar:3,apr:4,mei:5,may:5,jun:6,jul:7,agu:8,ags:8,aug:8,sep:9,okt:10,oct:10,nov:11,des:12,dec:12};
+    m=t.match(/(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s+(\d{4})(?:[ ,]+(\d{1,2})[:.](\d{2}))?/);
+    if(m && bln[m[2].toLowerCase()]) o.date=`${m[3]}-${pad2(bln[m[2].toLowerCase()])}-${pad2(+m[1])}T${pad2(+(m[4]||0))}:${pad2(+(m[5]||0))}`;
+  }
+  // referensi
+  m=t.match(/(?:no\.?\s*ref(?:erensi)?|ref(?:erensi)?|id\s*transaksi|no\.?\s*trx|trx\s*id)[^A-Za-z0-9]{0,4}([A-Z0-9]{6,})/i);
+  if(m) o.ref=m[1];
+  // field per jenis
+  const grab=re=>{ const x=t.match(re); return x?x[1].trim():''; };
+  if(o.type==='token'){
+    const tk=t.match(/\b(\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})\b/); if(tk) o.extra.token=tk[1].replace(/\D/g,'');
+    const mt=t.match(/(?:no\.?\s*meter|meter|idpel|id\s*pel\w*)[^\d]{0,6}(\d{10,12})/i); if(mt) o.extra.meter=mt[1];
+    const kw=t.match(/(\d+(?:[.,]\d+)?)\s*kwh/i); if(kw) o.extra.kwh=kw[1].replace('.',',');
+    o.extra.nama=grab(/nama[^\S\n]*[:\-]?[^\S\n]*([^\n]+)/i);
+    o.extra.tarif=grab(/(?:tarif\s*\/?\s*daya|tarif|daya)[^\S\n]*[:\-]?[^\S\n]*([^\n]+)/i);
+  }else if(o.type==='transfer'){
+    const rk=t.match(/(?:rek(?:ening)?|no\.?\s*rek)[^\d]{0,12}(\d{6,})/i); if(rk) o.extra.rek=rk[1];
+    o.extra.nama=grab(/(?:nama\s*penerima|penerima|nama)[^\S\n]*[:\-]?[^\S\n]*([^\n]+)/i);
+    o.extra.bank=grab(/bank\s*(?:tujuan)?[^\S\n]*[:\-]?[^\S\n]*([A-Za-z ]{2,25})/i);
+    o.extra.berita=grab(/(?:berita|catatan|keterangan)[^\S\n]*[:\-]?[^\S\n]*([^\n]+)/i);
+  }else if(o.type==='pulsa'){
+    const hp=t.match(/\b(0?8\d{8,12})\b/); if(hp) o.extra.nomor=hp[1];
+    o.extra.operator=grab(/(telkomsel|indosat|xl|axis|tri|smartfren|by\.u)/i);
+    o.extra.produk=grab(/(?:produk|paket|item)[^\S\n]*[:\-]?[^\S\n]*([^\n]+)/i);
+  }else if(o.type==='tagihan'){
+    o.extra.idpel=grab(/(?:id\s*pel\w*|no\.?\s*pelanggan|no\.?\s*peserta)[^\d]{0,6}(\d{6,})/i);
+    o.extra.nama=grab(/nama[^\S\n]*[:\-]?[^\S\n]*([^\n]+)/i);
+    o.extra.periode=grab(/periode[^\S\n]*[:\-]?[^\S\n]*([^\n]+)/i);
+  }
+  Object.keys(o.extra).forEach(k=>{ if(!o.extra[k]) delete o.extra[k]; });
+  return o;
+}
+function applyParsed(o){
+  const cur=getData();
+  const d={ type:o.type, extra:o.extra, date:o.date||cur.date, method:cur.method,
+            ref:o.ref||cur.ref, note:cur.note, nominal:o.nominal||cur.nominal, admin:o.admin||cur.admin };
+  setData(d);
+}
+$('#btnCam').onclick=()=>$('#fileCam').click();
+$('#btnGal').onclick=()=>$('#fileGal').click();
+$('#fileCam').onchange=e=>{ runOCR(e.target.files[0]); e.target.value=''; };
+$('#fileGal').onchange=e=>{ runOCR(e.target.files[0]); e.target.value=''; };
+
+/* ===================== Gambar & cetak browser ===================== */
+function renderCanvas(L){
+  const fs=24, padX=20, padY=20, lh=Math.round(fs*1.3);
+  const c=document.createElement('canvas'), g=c.getContext('2d');
+  g.font=`${fs}px "Courier New",monospace`;
+  const cw=g.measureText('M').width, W=Math.ceil(cw*SET.width+padX*2);
+  c.width=W; c.height=L.length*lh+padY*2;
+  g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height);
+  g.fillStyle='#000'; g.textBaseline='top';
+  L.forEach((x,i)=>{ g.font=`${x.b?'bold ':''}${fs}px "Courier New",monospace`; g.fillText(x.t,padX,padY+i*lh); });
+  return c;
+}
+async function shareImage(){
+  const d=getData(), c=renderCanvas(buildLines(d));
+  const fname=(d.no||'nota').replace(/[^\w-]+/g,'_')+'.png';
+  c.toBlob(async blob=>{
+    const file=new File([blob],fname,{type:'image/png'});
+    try{
+      if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:'Nota '+d.no}); return; }
+    }catch(e){ if(e.name==='AbortError') return; }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  },'image/png');
+}
+$('#btnImg').onclick=shareImage;
+$('#btnSys').onclick=()=>{ refresh(); window.print(); };
+
+/* ===================== Tombol utama ===================== */
+$('#btnSave').onclick=()=>saveNota(false);
+$('#btnPrint').onclick=async()=>{
+  const d=getData();
+  if(d.nominal<=0){ alert('Isi nominal terlebih dahulu.'); return; }
+  const ok=await printLines(buildLines(d));
+  if(ok){ saveNota(true); toast('Nota dicetak & disimpan'); if(confirm('Buat nota baru?')) newForm(); }
+};
+$('#btnConnect').onclick=connectPrinter;
+$('#btnTest').onclick=async()=>{
+  const W=SET.width, L=[];
+  L.push({t:center('TES PRINTER',W),b:true});
+  L.push({t:'='.repeat(W),b:false});
+  L.push({t:'1234567890'.repeat(5).slice(0,W),b:false});
+  L.push({t:'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.slice(0,W),b:false});
+  L.push({t:center('Printer siap digunakan',W),b:false});
+  await printLines(L);
+};
+
+/* ===================== Pengaturan ===================== */
+function loadSet(){
+  $('#sName').value=SET.name; $('#sAddr').value=SET.addr; $('#sPhone').value=SET.phone;
+  $('#sFooter').value=SET.footer; $('#sPrefix').value=SET.prefix; $('#sWidth').value=String(SET.width);
+  $('#sFeed').value=SET.feed; $('#sCut').value=String(SET.cut);
+}
+$('#btnSaveSet').onclick=()=>{
+  SET={ name:$('#sName').value.trim(), addr:$('#sAddr').value.trim(), phone:$('#sPhone').value.trim(),
+        footer:$('#sFooter').value.trim(), prefix:($('#sPrefix').value.trim()||'NT').toUpperCase(),
+        width:Number($('#sWidth').value)||32, feed:Number($('#sFeed').value)||0, cut:Number($('#sCut').value)||0 };
+  store.set('nota_set',SET);
+  if(!editingId) currentNo=peekNo().no;
+  refresh(); toast('Pengaturan tersimpan');
+};
+
+/* ===================== Tab & toast ===================== */
+function showTab(name){
+  ['buat','riwayat','atur'].forEach(t=>$('#tab-'+t).classList.toggle('hide',t!==name));
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===name));
+  $('#mainBar').classList.toggle('hide',name!=='buat');
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+let tt;
+function toast(m){
+  let e=$('#toast');
+  if(!e){ e=document.createElement('div'); e.id='toast'; e.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#16202a;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;z-index:20;transition:opacity .2s'; document.body.appendChild(e); }
+  e.textContent=m; e.style.opacity=1; clearTimeout(tt); tt=setTimeout(()=>e.style.opacity=0,2200);
+}
+
+/* ===================== Init ===================== */
+buildTypeSelect();
+$('#type').addEventListener('change',()=>{ renderFields(); refresh(); });
+['nominal','admin','date','method','ref','note'].forEach(id=>$('#'+id).addEventListener('input',refresh));
+['nominal','admin'].forEach(id=>$('#'+id).addEventListener('input',e=>{
+  const v=num(e.target.value); e.target.value=v?v.toLocaleString('id-ID'):'';
+}));
+loadSet(); renderHist(); newForm();
+if(!SET.name){ showTab('atur'); toast('Isi identitas usaha dulu'); }
+</script>
+</body>
+</html>
